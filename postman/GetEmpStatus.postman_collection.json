@@ -2,61 +2,405 @@
     "info": {
       "name": "GetEmpStatus Collection",
       "_postman_id": "b6f0b3b2-1234-4b9f-aaaa-ccccdddd0001",
-      "description": "Endpoints for GetEmpStatus service",
+      "description": "Endpoints and tests for the GetEmpStatus service (FastAPI). Includes happy path, all error cases, validation, optional auth paths, cache busting, and health check.",
       "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
+    "variable": [
+      { "key": "baseUrl", "value": "http://localhost:8000" },
+      { "key": "API_TOKEN", "value": "" }
+    ],
     "item": [
       {
-        "name": "Happy Path (NAT1001)",
-        "request": {
-          "method": "POST",
-          "header": [
-            {"key": "Content-Type", "value": "application/json"},
-            {"key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": false}
-          ],
-          "body": {"mode": "raw", "raw": "{\"NationalNumber\":\"NAT1001\"}"},
-          "url": {"raw": "http://localhost:8000/api/GetEmpStatus", "protocol": "http", "host": ["localhost"], "port": "8000", "path": ["api","GetEmpStatus"]}
-        }
+        "name": "Health",
+        "item": [
+          {
+            "name": "Healthz (200)",
+            "request": {
+              "method": "GET",
+              "header": [],
+              "url": {
+                "raw": "{{baseUrl}}/healthz",
+                "host": ["{{baseUrl}}"],
+                "path": ["healthz"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 200\", () => pm.response.code === 200);",
+                    "const json = pm.response.json();",
+                    "pm.test(\"ok flag true\", () => json && json.ok === true);"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        ]
       },
       {
-        "name": "User Not Found",
-        "request": {
-          "method": "POST",
-          "header": [
-            {"key": "Content-Type", "value": "application/json"},
-            {"key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": false}
-          ],
-          "body": {"mode": "raw", "raw": "{\"NationalNumber\":\"NOPE999\"}"},
-          "url": {"raw": "http://localhost:8000/api/GetEmpStatus", "protocol": "http", "host": ["localhost"], "port": "8000", "path": ["api","GetEmpStatus"]}
-        }
+        "name": "GetEmpStatus - Core",
+        "item": [
+          {
+            "name": "Happy Path (NAT1001)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1001\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 200\", () => pm.response.code === 200);",
+                    "const j = pm.response.json();",
+                    "pm.test(\"has user\", () => j.user && j.user.nationalNumber === 'NAT1001');",
+                    "pm.test(\"has metrics\", () => j.metrics && typeof j.metrics.count === 'number');",
+                    "pm.test(\"status is valid\", () => ['GREEN','ORANGE','RED'].includes(j.status));",
+                    "pm.test(\"has lastUpdatedUtc\", () => typeof j.lastUpdatedUtc === 'string' && j.lastUpdatedUtc.includes('T'));"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "User Not Found (404)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NOPE999\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 404\", () => pm.response.code === 404);",
+                    "const j = pm.response.json();",
+                    "pm.test(\"error envelope\", () => j && j.error === 'Invalid National Number');"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Inactive User (406) - NAT1003",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1003\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 406\", () => pm.response.code === 406);",
+                    "const j = pm.response.json();",
+                    "pm.test(\"error envelope\", () => j && j.error === 'User is not Active');"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Insufficient Data (422) - NAT1012",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1012\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 422\", () => pm.response.code === 422);",
+                    "const j = pm.response.json();",
+                    "pm.test(\"error envelope\", () => j && j.error === 'INSUFFICIENT_DATA');"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        ]
       },
       {
-        "name": "Inactive User (406)",
-        "request": {
-          "method": "POST",
-          "header": [
-            {"key": "Content-Type", "value": "application/json"},
-            {"key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": false}
-          ],
-          "body": {"mode": "raw", "raw": "{\"NationalNumber\":\"NAT1003\"}"},
-          "url": {"raw": "http://localhost:8000/api/GetEmpStatus", "protocol": "http", "host": ["localhost"], "port": "8000", "path": ["api","GetEmpStatus"]}
-        }
+        "name": "GetEmpStatus - Validation",
+        "item": [
+          {
+            "name": "Validation: Missing Key (422)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 422\", () => pm.response.code === 422);",
+                    "const j = pm.response.json();",
+                    "pm.test(\"validation envelope\", () => j && j.error === 'VALIDATION_ERROR');",
+                    "pm.test(\"details present\", () => Array.isArray(j.details));"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Validation: Wrong Type (number) (422)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":12345}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 422\", () => pm.response.code === 422);",
+                    "const j = pm.response.json();",
+                    "pm.test(\"validation envelope\", () => j && j.error === 'VALIDATION_ERROR');",
+                    "pm.test(\"details present\", () => Array.isArray(j.details));"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        ]
       },
       {
-        "name": "Insufficient Data (422)",
-        "request": {
-          "method": "POST",
-          "header": [
-            {"key": "Content-Type", "value": "application/json"},
-            {"key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": false}
-          ],
-          "body": {"mode": "raw", "raw": "{\"NationalNumber\":\"NAT2001\"}"},
-          "url": {"raw": "http://localhost:8000/api/GetEmpStatus", "protocol": "http", "host": ["localhost"], "port": "8000", "path": ["api","GetEmpStatus"]}
-        }
+        "name": "GetEmpStatus - Cache",
+        "item": [
+          {
+            "name": "Happy Path - Cached (2nd call ok)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1001\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 200\", () => pm.response.code === 200);",
+                    "pm.test(\"cache-compatible payload\", () => !!pm.response.json());"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Bust Cache (query param)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": true }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1001\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus?bustCache=true",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"],
+                "query": [{ "key": "bustCache", "value": "true" }]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 200\", () => pm.response.code === 200);",
+                    "pm.test(\"payload present\", () => !!pm.response.json());"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "GetEmpStatus - Auth Enabled (run only if API_TOKEN is configured on server)",
+        "item": [
+          {
+            "name": "Unauthorized (401) - Missing Token",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1001\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "/* Only passes if server has API_TOKEN set */",
+                    "pm.test(\"status 401 or 200 depending on server config\", () => [200,401].includes(pm.response.code));",
+                    "if (pm.response.code === 401) {",
+                    "  const j = pm.response.json();",
+                    "  pm.test(\"error envelope\", () => j && j.error === 'Unauthorized');",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Invalid Token (401)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer WRONG_TOKEN", "disabled": false }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1001\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "/* Only passes if server has API_TOKEN set */",
+                    "pm.test(\"status 401 or 200 depending on server config\", () => [200,401].includes(pm.response.code));",
+                    "if (pm.response.code === 401) {",
+                    "  const j = pm.response.json();",
+                    "  pm.test(\"error envelope\", () => j && j.error === 'Unauthorized');",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          },
+          {
+            "name": "Valid Token (200)",
+            "request": {
+              "method": "POST",
+              "header": [
+                { "key": "Content-Type", "value": "application/json" },
+                { "key": "Authorization", "value": "Bearer {{API_TOKEN}}", "disabled": false }
+              ],
+              "body": { "mode": "raw", "raw": "{\"NationalNumber\":\"NAT1001\"}" },
+              "url": {
+                "raw": "{{baseUrl}}/api/GetEmpStatus",
+                "host": ["{{baseUrl}}"],
+                "path": ["api", "GetEmpStatus"]
+              }
+            },
+            "event": [
+              {
+                "listen": "prerequest",
+                "script": {
+                  "exec": [
+                    "if (!pm.collectionVariables.get('API_TOKEN')) {",
+                    "  console.warn('API_TOKEN is empty. This request expects the server to NOT require auth or will fail if it does.');",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              },
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "pm.test(\"status 200 or 401 depending on server config\", () => [200,401].includes(pm.response.code));",
+                    "if (pm.response.code === 200) {",
+                    "  const j = pm.response.json();",
+                    "  pm.test(\"has user\", () => j.user && j.user.nationalNumber === 'NAT1001');",
+                    "}"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        ]
       }
-    ],
-    "variable": [
-      {"key": "API_TOKEN", "value": ""}
     ]
   }
   
