@@ -23,4 +23,4 @@ def test_insufficient_data(test_client):
     # from your seed: NAT1012 is active with <3 salary rows
     r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": "NAT1012"})
     assert r.status_code == 422
-    assert r.json()["detail"] == "INSUFFICIENT_DATA"
+    assert r.json()["error"] == "INSUFFICIENT_DATA"
