@@ -1,6 +1,6 @@
 from sqlalchemy.orm import declarative_base, relationship, Mapped, mapped_column
 from sqlalchemy import Integer, String, Boolean, ForeignKey, DateTime, Numeric
-from datetime import datetime
+from datetime import datetime, timezone
 
 Base = declarative_base()
 
@@ -26,7 +26,11 @@ class Salary(Base):
 class Log(Base):
     __tablename__ = "logs"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
     level: Mapped[str] = mapped_column(String(10), nullable=False)
     message: Mapped[str] = mapped_column(String(255), nullable=False)
     context_json: Mapped[str | None] = mapped_column(String(2000), nullable=True)
