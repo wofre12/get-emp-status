@@ -58,7 +58,12 @@ class ProcessStatus:
     """
     @staticmethod
     def adjust_by_month(year: int, month: int, amount: Decimal) -> Decimal:
-        return adjust_by_month(year, month, amount)
+        amt = amount if isinstance(amount, Decimal) else Decimal(str(amount))
+        if month == 12:
+            return amt * Decimal("1.10")
+        if month in (6, 7, 8):
+            return amt * Decimal("0.95")
+        return amt
 
     @staticmethod
     def status_from_average(avg: Decimal) -> Literal["GREEN", "ORANGE", "RED"]:

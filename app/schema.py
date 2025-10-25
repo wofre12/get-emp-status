@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field,  ConfigDict
 from decimal import Decimal
 from typing import Literal, Optional
 
@@ -39,9 +39,7 @@ class EmpInfo(BaseModel):
     Email: str = Field(..., alias="email")
     Phone: Optional[str] = Field(None, alias="phone")
     IsActive: bool = Field(..., alias="is_active")
-
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 class FlatGetEmpStatusResponse(BaseModel):
     # Exact success format 
