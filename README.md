@@ -57,12 +57,28 @@ Body:
   - `= 2000` → **ORANGE**
   - `< 2000` → **RED**
 - Requires **at least 3** salary rows for active users.
-```
-> **Output notes:**  
-> - `HighestSalary` is computed from month-adjusted values (pre-tax).  
-> - `AverageSalary` is the post-tax average (7% deduction applied to total when sum > 10,000), rounded to 2 decimals.  
-> - `LastUpdated` is UTC ISO-8601 and ends with `Z`.
-```
+## Output notes:
+
+- HighestSalary is computed from month-adjusted values (pre-tax).
+
+- AverageSalary is the post-tax average (7% deduction applied to total when sum > 10,000), rounded to 2 decimals.
+
+- LastUpdated is UTC ISO-8601 and ends with Z.
+
+### Important: Output shape vs. full computation
+
+- I implement all required business rules: month adjustments (+10% in Dec, −5% in Jun/Jul/Aug), retrieving all salaries, computing the total, applying a 7% tax when the total > 10,000, computing the post-tax average, determining status (GREEN/ORANGE/RED), and adding a UTC LastUpdated timestamp.
+- To match the brief’s example, I keep a **minimal, fixed success response** for every successful `POST /api/GetEmpStatus` call:
+  - **EmployeeName**
+  - **NationalNumber**
+  - **HighestSalary**
+  - **AverageSalary**
+  - **Status**
+  - **IsActive**
+  - **LastUpdated**
+- I do calculate totals (pre-/post-tax) internally to enforce the rules, but I don’t include them in the payload because the example output doesn’t show them. If totals are desired, I can expose `SumOfSalaries` (or `SumAfterTax`) with a small change.
+- Error responses intentionally use `{ "error": "<message>" }` with the appropriate HTTP status (401/404/406/422). Validation errors return `{ "error": "VALIDATION_ERROR", "details": [...] }`.
+
 
 ## Errors
 All business/HTTP errors are returned as:
