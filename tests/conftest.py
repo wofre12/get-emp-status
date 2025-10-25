@@ -9,19 +9,15 @@ TEST_DB = pathlib.Path("test.db")
 @pytest.fixture(scope="session")
 def test_client():
     os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB}"
+    os.environ["API_TOKEN"] = "secret123"
 
-    # Import AFTER env var set
     from app.main import app
     from app.bootstrap import init_database
     from app.data_access import DataAccess
-    from app.settings import settings
-
-    # Ensure auth OFF for default tests
-    settings.API_TOKEN = None
 
     # Fresh start
     if TEST_DB.exists():
-        # best effort: dispose any old engine holding a lock
+        # dispose any old engine holding a lock
         try:
             DataAccess(os.environ["DATABASE_URL"]).engine.dispose()
         except Exception:

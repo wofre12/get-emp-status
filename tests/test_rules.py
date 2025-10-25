@@ -1,6 +1,7 @@
+AUTH = {"Authorization": "Bearer secret123"}
+
 def test_tax_rule_applies_when_total_gt_10000(test_client):
-    # NAT1008 in your seed has large totals + December -> adjusted total > 10k
-    r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": "NAT1008"})
+    r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": "NAT1008"}, headers=AUTH)
     assert r.status_code == 200
     body = r.json()
     sum_ = body["metrics"]["sum"]
@@ -8,18 +9,18 @@ def test_tax_rule_applies_when_total_gt_10000(test_client):
     # 7% deduction only when sum > 10000
     assert sum_ > 10000
     assert after < sum_
-    # ballpark check near 93% (allow rounding wiggle)
+    # check near 93% (allow rounding)
     assert 0.92 * sum_ < after < 0.94 * sum_
 
 def test_month_adjustments_influence_highest(test_client):
     # NAT1008 has December (+10%); highest should reflect an adjusted month
-    r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": "NAT1008"})
+    r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": "NAT1008"}, headers=AUTH)
     assert r.status_code == 200
     body = r.json()
     highest = body["metrics"]["highest"]
-    # highest should be a reasonable positive number after adjustment
+    # reasonable positive number after adjustment
     assert highest >= 0
-    
+
 def test_status_colors_explicit(test_client):
     # create deterministic users with months 1-3 (no month adjustments)
     from app.data_access import DataAccess
@@ -58,6 +59,6 @@ def test_status_colors_explicit(test_client):
 
     # call API and assert status
     for nat, expected in [("NAT_RED","RED"),("NAT_ORANGE","ORANGE"),("NAT_GREEN","GREEN")]:
-        r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": nat})
+        r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": nat}, headers=AUTH)
         assert r.status_code == 200
         assert r.json()["status"] == expected
