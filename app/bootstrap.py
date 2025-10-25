@@ -5,18 +5,22 @@ from .models import Base
 
 SEED_SQL_PATH = Path(__file__).resolve().parent.parent / "db" / "seed.sql"
 
-def init_database(da: DataAccess) -> None:
-    # Create schema
-    Base.metadata.create_all(da.engine)
-    # Seed strictly from db/seed.sql (no fallback)
-    sql = SEED_SQL_PATH.read_text(encoding="utf-8")
-    if not sql.strip():
+def init_database(data_access):
+    Base.metadata.create_all(data_access.engine)
+
+    seed_sql = Path("db/seed.sql")
+    if not seed_sql.exists():
         return
-    # Execute each statement 
-    with da.engine.begin() as conn:
-        # Enable FKs for SQLite
-        if da.engine.url.get_backend_name() == "sqlite":
-            conn.exec_driver_sql("PRAGMA foreign_keys=ON")
-        # Split on semicolons; ignore blanks
-        for stmt in filter(None, (seg.strip() for seg in sql.split(";"))):
+
+    with data_access.engine.begin() as conn:
+        # if users already present, skip seeding to avoid unique conflicts
+        try:
+            count = conn.execute(text("SELECT COUNT(*) FROM users")).scalar() or 0
+        except Exception:
+            count = 0
+        if count > 0:
+            return
+
+        stmts = seed_sql.read_text(encoding="utf-8")
+        for stmt in filter(None, (s.strip() for s in stmts.split(";"))):
             conn.execute(text(stmt))
