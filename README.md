@@ -37,23 +37,13 @@ Body:
 ### Successful Response (200)
 ```json
 {
-  "user": {
-   "username": "john",
-    "nationalNumber": "NAT1001",
-    "email": "john@example.com",
-    "phone": "555-0100",
-    "isActive": true
-  },
-  "metrics": {
-    "count": 12,
-    "sum": 12345.67,
-    "sumAfterTax": 11481.47,
-    "average": 956.79,
-    "averageAfterTax": 956.79,
-    "highest": 2200.00
-  },
-  "status": "GREEN",
-  "lastUpdatedUtc": "2025-10-24T18:12:04Z"
+  "EmployeeName": "John Doe",
+  "NationalNumber": "NAT1001",
+  "HighestSalary": 2500,
+  "AverageSalary": 1870.45,
+  "Status": "GREEN",
+  "IsActive": true,
+  "LastUpdated": "2025-10-24T18:12:04Z"
 }
 ```
 
@@ -67,6 +57,12 @@ Body:
   - `= 2000` → **ORANGE**
   - `< 2000` → **RED**
 - Requires **at least 3** salary rows for active users.
+```
+> **Output notes:**  
+> - `HighestSalary` is computed from month-adjusted values (pre-tax).  
+> - `AverageSalary` is the post-tax average (7% deduction applied to total when sum > 10,000), rounded to 2 decimals.  
+> - `LastUpdated` is UTC ISO-8601 and ends with `Z`.
+```
 
 ## Errors
 All business/HTTP errors are returned as:
@@ -127,6 +123,12 @@ Import `postman/GetEmpStatus.postman_collection.json`. The request inherits Bear
 - `app/settings.py` — Config via env vars.
 - `app/bootstrap.py` — Schema + **seed** loader.
 - `app/schema.py` — Pydantic request/response models.
+
+### Core Classes & Responsibilities
+- **ProcessStatus** — business logic orchestration (month adjustments, tax rule, metrics, status).
+- **DataAccess** — all DB interactions (queries/transactions) with retry.
+- **EmpInfo** — employee view model for API/logic.
+- **Validator** — bearer token validation (401 on missing/invalid token).
 
 ## Data Model & Seed
 See `db/seed.sql` for sample users/salaries. The app loads it at startup (idempotent).
