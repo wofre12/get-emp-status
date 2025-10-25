@@ -20,14 +20,14 @@ A single-endpoint FastAPI service that returns an employee’s pay metrics and s
 - Framework: FastAPI + SQLAlchemy
 - DB: SQLite by default (switch with `DATABASE_URL`)
 - Endpoint: `POST /api/GetEmpStatus`
-- Bonus: TTL cache, DB logger, DB retries, optional bearer token
+- Bonus: TTL cache, DB logger, DB retries, bearer-token protection (**required**)
 
 ## API
 ### Request
 ```http
 POST /api/GetEmpStatus
 Content-Type: application/json
-Authorization: Bearer <token>        # optional; required only if API_TOKEN is set
+Authorization: Bearer <token>        # REQUIRED
 ```
 Body:
 ```json
@@ -49,6 +49,7 @@ Body:
     "sum": 12345.67,
     "sumAfterTax": 11481.47,
     "average": 956.79,
+    "averageAfterTax": 956.79,
     "highest": 2200.00
   },
   "status": "GREEN",
@@ -60,8 +61,8 @@ Body:
 - Monthly adjustments:
   - **December**: +10%
   - **June–August**: –5%
-- Tax: If adjusted **total > 10,000**, apply **7%** deduction to the total. `average` uses the post-tax total.
-- Status by average:
+- Tax: If adjusted **total > 10,000**, apply **7%** deduction to the **total**.
+- Status uses the **post-tax average** (`averageAfterTax`):
   - `> 2000` → **GREEN**
   - `= 2000` → **ORANGE**
   - `< 2000` → **RED**
@@ -77,7 +78,8 @@ Typical cases:
 - `404` — `{ "error": "Invalid National Number" }`
 - `406` — `{ "error": "User is not Active" }`
 - `422` — `{ "error": "INSUFFICIENT_DATA" }` (active user with <3 salary rows)
-- `401` — `{ "error": "Unauthorized" }` (when `API_TOKEN` is set and header is missing/invalid)
+- `401` — `{ "error": "Unauthorized" }` (missing/invalid Bearer token)
+
 
 Validation errors (malformed payload) return:
 ```json
@@ -91,7 +93,7 @@ Validation errors (malformed payload) return:
 | Variable | Default | Purpose |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./local.db` | DB connection string |
-| `API_TOKEN` | *(unset)* | If set, enables bearer auth. |
+| `API_TOKEN` | *(required)* | Bearer token all requests must present. |
 | `CACHE_TTL_SECONDS` | `60` | Cache TTL seconds for employee responses |
 | `LOG_TO_DB` | `1` | `1` to enable DB logging to `logs` table |
 
@@ -100,6 +102,8 @@ Validation errors (malformed payload) return:
 python -m venv .venv
 source .venv/bin/activate           # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+# REQUIRED: set API token before starting the server
+export API_TOKEN="secret123"        # Windows (PowerShell): $env:API_TOKEN="secret123"
 uvicorn app.main:app --reload
 ```
 Open Swagger UI at `http://localhost:8000/docs`.
@@ -110,7 +114,7 @@ pytest -vv --log-cli-level=INFO
 ```
 
 ## Postman Collection
-Import `postman/GetEmpStatus.postman_collection.json`. The `Authorization` header is **disabled by default**; enable and set `{API_TOKEN}}` only if you configured one.
+Import `postman/GetEmpStatus.postman_collection.json`. The request inherits Bearer auth automatically.
 
 ## Architecture
 - `app/main.py` — FastAPI app, lifespan bootstrap, **error envelope mappers**.
@@ -133,6 +137,6 @@ See `db/seed.sql` for sample users/salaries. The app loads it at startup (idempo
 - Retries: DB reads are retried 3x with exponential backoff (Tenacity).
 
 ## Troubleshooting
-- 401 with API_TOKEN set → ensure `Authorization: Bearer <token>`.
+- 401 → ensure you sent `Authorization: Bearer <token>` and that it matches `API_TOKEN`.
 - 422 VALIDATION_ERROR → payload shape or types are wrong.
 - Seed not applied → verify `db/seed.sql` exists and contains statements.
