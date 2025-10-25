@@ -76,10 +76,12 @@
                 "exec": [
                   "pm.test(\"status 200\", () => pm.response.code === 200);",
                   "const j = pm.response.json();",
-                  "pm.test(\"has user\", () => j.user && j.user.nationalNumber === 'NAT1001');",
-                  "pm.test(\"has metrics\", () => j.metrics && typeof j.metrics.count === 'number');",
-                  "pm.test(\"status is valid\", () => ['GREEN','ORANGE','RED'].includes(j.status));",
-                  "pm.test(\"has lastUpdatedUtc\", () => typeof j.lastUpdatedUtc === 'string' && j.lastUpdatedUtc.includes('T'));"
+                  "pm.test(\"NationalNumber match\", () => j.NationalNumber === 'NAT1001');",
+                  "pm.test(\"Highest present\", () => typeof j.HighestSalary === 'number');",
+                  "pm.test(\"Average present\", () => typeof j.AverageSalary === 'number');",
+                  "pm.test(\"Status valid\", () => ['GREEN','ORANGE','RED'].includes(j.Status));",
+                  "pm.test(\"IsActive is boolean\", () => typeof j.IsActive === 'boolean');",
+                  "pm.test(\"LastUpdated Z\", () => typeof j.LastUpdated === 'string' && j.LastUpdated.endsWith('Z'));"
                 ],
                 "type": "text/javascript"
               }
@@ -294,7 +296,8 @@
               "script": {
                 "exec": [
                   "pm.test(\"status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"cache-compatible payload\", () => !!pm.response.json());"
+                  "const j = pm.response.json();",
+                  "pm.test(\"flat keys present\", () => !!j.EmployeeName && !!j.NationalNumber && !!j.Status && !!j.LastUpdated);"
                 ],
                 "type": "text/javascript"
               }
@@ -328,7 +331,8 @@
               "script": {
                 "exec": [
                   "pm.test(\"status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"payload present\", () => !!pm.response.json());"
+                  "const j = pm.response.json();",
+                  "pm.test(\"flat keys present\", () => !!j.EmployeeName && !!j.NationalNumber && !!j.Status && !!j.LastUpdated);"
                 ],
                 "type": "text/javascript"
               }
@@ -339,4 +343,3 @@
     }
   ]
 }
-
