@@ -126,7 +126,13 @@ pytest -vv --log-cli-level=INFO
 ```
 
 ## Postman Collection
-Import `postman/GetEmpStatus.postman_collection.json`. The request inherits Bearer auth automatically.
+Import `postman/GetEmpStatus.postman_collection.json` and click Run.. The request inherits Bearer auth automatically.
+Before running, make sure the server is started with an API token:
+
+macOS/Linux: API_TOKEN=secret123 uvicorn app.main:app --port 8000
+
+Windows PowerShell: $env:API_TOKEN="secret123"; uvicorn app.main:app --port 8000
+The collection uses baseUrl = http://localhost:8000 and API_TOKEN = secret123—update the collection variables only if you change the server token or port.
 
 ## Architecture
 - `app/main.py` — FastAPI app, lifespan bootstrap, **error envelope mappers**.
