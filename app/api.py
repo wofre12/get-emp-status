@@ -52,7 +52,7 @@ async def get_emp_status(
 
     month_amounts = [(r.month, Decimal(str(r.amount))) for r in rows]
     metrics = compute_metrics(month_amounts)
-    status_str = status_from_average(Decimal(str(metrics["average"])))
+    status_str = status_from_average(Decimal(str(metrics["averageAfterTax"])))
 
     resp = GetEmpStatusResponse(
         user=UserOut(

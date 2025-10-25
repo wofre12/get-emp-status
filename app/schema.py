@@ -15,6 +15,7 @@ class MetricsOut(BaseModel):
     sum: float
     sumAfterTax: float
     average: float
+    averageAfterTax: float
     highest: float
 
 class GetEmpStatusResponse(BaseModel):
