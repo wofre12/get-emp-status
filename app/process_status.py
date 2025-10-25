@@ -1,5 +1,5 @@
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Iterable
+from typing import Iterable, Any, Dict, Literal
 
 q2 = Decimal("0.01")
 
@@ -50,3 +50,24 @@ def status_from_average(avg: Decimal) -> str:
     if avg == Decimal("2000"):
         return "ORANGE"
     return "RED"
+
+class ProcessStatus:
+    """
+    Facade exposing the existing process-status functions as class/static methods.
+    Behavior is unchanged; this only satisfies the 'ProcessStatus' class naming.
+    """
+    @staticmethod
+    def adjust_by_month(year: int, month: int, amount: Decimal) -> Decimal:
+        return adjust_by_month(year, month, amount)
+
+    @staticmethod
+    def status_from_average(avg: Decimal) -> Literal["GREEN", "ORANGE", "RED"]:
+        return status_from_average(avg)
+
+    @staticmethod
+    def compute_metrics(salaries: list[Dict[str, Any]]) -> Any:
+        return compute_metrics(salaries)
+
+    @classmethod
+    def compute_for_national_number(cls, national_number: str):
+        return compute_for_national_number(national_number)

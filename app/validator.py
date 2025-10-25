@@ -20,3 +20,12 @@ async def validate_token(authorization: str | None = Header(default=None)) -> No
 
     if token.strip() != settings.API_TOKEN:
         _unauth()
+
+class Validator:
+    """
+    Facade.
+    Mirrors the existing dependency function.
+    """
+    @staticmethod
+    async def validate_token(authorization: str | None = Header(default=None)) -> None:
+        return await validate_token(authorization)

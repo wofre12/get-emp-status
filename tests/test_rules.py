@@ -1,23 +1,37 @@
 AUTH = {"Authorization": "Bearer secret123"}
 
 def test_tax_rule_applies_when_total_gt_10000(test_client):
+    from decimal import Decimal, ROUND_HALF_UP
+    from app.data_access import DataAccess
+    from app.settings import settings
+    from app.models import User, Salary
+    from app.process_status import ProcessStatus
+
     r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": "NAT1008"}, headers=AUTH)
     assert r.status_code == 200
     body = r.json()
-    sum_ = body["metrics"]["sum"]
-    after = body["metrics"]["sumAfterTax"]
-    # 7% deduction only when sum > 10000
-    assert sum_ > 10000
-    assert after < sum_
-    # check near 93% (allow rounding)
-    assert 0.92 * sum_ < after < 0.94 * sum_
+
+    # Recompute from DB: adjust months, sum, apply tax if > 10k, then average
+    da = DataAccess(settings.DATABASE_URL)
+    with da.SessionLocal() as s:
+        u = s.query(User).filter_by(national_number="NAT1008").one()
+        rows = s.query(Salary).filter_by(user_id=u.id).all()
+        adjusted = [ProcessStatus.adjust_by_month(row.year, row.month, Decimal(str(row.amount))) for row in rows]
+    sum_pre_tax = sum(adjusted)
+    assert sum_pre_tax > Decimal("10000")
+    sum_after_tax = (sum_pre_tax * Decimal("0.93")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    avg_after_tax = (sum_after_tax / Decimal(len(adjusted))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    # API rounds AverageSalary to 2 dp; compare with small tolerance
+    api_avg = Decimal(str(body["AverageSalary"]))
+    assert abs(api_avg - avg_after_tax) <= Decimal("0.01")
 
 def test_month_adjustments_influence_highest(test_client):
     # NAT1008 has December (+10%); highest should reflect an adjusted month
     r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": "NAT1008"}, headers=AUTH)
     assert r.status_code == 200
     body = r.json()
-    highest = body["metrics"]["highest"]
+    highest = body["HighestSalary"]
     # reasonable positive number after adjustment
     assert highest >= 0
 
@@ -61,4 +75,4 @@ def test_status_colors_explicit(test_client):
     for nat, expected in [("NAT_RED","RED"),("NAT_ORANGE","ORANGE"),("NAT_GREEN","GREEN")]:
         r = test_client.post("/api/GetEmpStatus", json={"NationalNumber": nat}, headers=AUTH)
         assert r.status_code == 200
-        assert r.json()["status"] == expected
+        assert r.json()["Status"] == expected

@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from datetime import datetime, timezone
 from decimal import Decimal
-from .schema import GetEmpStatusRequest, GetEmpStatusResponse, ErrorOut, UserOut, MetricsOut
+from .schema import GetEmpStatusRequest, FlatGetEmpStatusResponse, ErrorOut
 from .data_access import DataAccess
-from .validator import validate_token
-from .process_status import compute_metrics, status_from_average
+from .validator import Validator
+from .process_status import ProcessStatus
 from .cache import TTLCache
 from .logger import DBLogger
 from .settings import settings
@@ -15,7 +15,7 @@ _cache = TTLCache(ttl_seconds=settings.CACHE_TTL_SECONDS)
 def _cache_key(national: str) -> str:
     return f"empstatus:{national}"
 
-@router.post("/GetEmpStatus", response_model=GetEmpStatusResponse, responses={
+@router.post("/GetEmpStatus", response_model=FlatGetEmpStatusResponse, responses={
     404: {"model": ErrorOut},
     406: {"model": ErrorOut},
     422: {"model": ErrorOut},
@@ -24,7 +24,7 @@ def _cache_key(national: str) -> str:
 async def get_emp_status(
     payload: GetEmpStatusRequest,
     data: DataAccess = Depends(lambda: router.data_access),    # type: ignore[attr-defined]
-    _: None = Depends(validate_token),
+    _: None = Depends(Validator.validate_token),
     bustCache: bool = Query(default=False)
 ):
     national = payload.NationalNumber.strip()
@@ -51,21 +51,25 @@ async def get_emp_status(
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="INSUFFICIENT_DATA")
 
     month_amounts = [(r.month, Decimal(str(r.amount))) for r in rows]
-    metrics = compute_metrics(month_amounts)
-    status_str = status_from_average(Decimal(str(metrics["averageAfterTax"])))
+    metrics = ProcessStatus.compute_metrics(month_amounts)
+    status_str = ProcessStatus.status_from_average(Decimal(str(metrics["averageAfterTax"])))
 
-    resp = GetEmpStatusResponse(
-        user=UserOut(
-            username=user.username,
-            nationalNumber=user.national_number,
-            email=user.email,
-            phone=user.phone,
-            isActive=user.is_active
-        ),
-        metrics=MetricsOut(**{k: float(v) if k != "count" else v for k, v in metrics.items()}),
-        status=status_str,
-        lastUpdatedUtc=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    avg = float(metrics.get("averageAfterTax", metrics["average"]))
+    last_updated = (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
     )
+    resp = {
+        "EmployeeName": user.username,
+        "NationalNumber": user.national_number,
+        "HighestSalary": float(metrics["highest"]),
+        "AverageSalary": round(avg, 2),
+        "Status": status_str,
+        "IsActive": bool(user.is_active),
+        "LastUpdated": last_updated,
+    }
     _cache.set(_cache_key(national), resp)
     logger.log("INFO", "success", {**ctx, "count": metrics["count"], "status": status_str})
     return resp
